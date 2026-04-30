@@ -20,7 +20,10 @@ BaselineOfMooseParquet >> defineDependencies: spec [
 
 	spec
 		baseline: 'PharoArrow'
-		with: [ spec repository: 'github://badetitou/PharoArrow:main/src' ]
+		with: [ spec repository: 'github://badetitou/PharoArrow:main/src' ];
+		baseline: 'NeoJSON'
+		with: [
+			spec repository: 'github://svenvc/NeoJSON:master/repository' ]
 ]
 
 { #category : 'baselines' }
@@ -36,7 +39,8 @@ BaselineOfMooseParquet >> defineGroups: spec [
 BaselineOfMooseParquet >> definePackages: spec [
 
 	spec
-		package: 'MooseParquet' with: [ spec requires: #( 'PharoArrow' ) ];
+		package: 'MooseParquet'
+		with: [ spec requires: #( 'PharoArrow' 'NeoJSON' ) ];
 		package: 'MooseParquet-Tests'
 		with: [ spec requires: #( 'MooseParquet' ) ]
 ]

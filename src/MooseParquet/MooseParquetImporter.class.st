@@ -3,12 +3,28 @@ Class {
 	#superclass : 'Object',
 	#instVars : [
 		'model',
-		'entitiesMap'
+		'entitiesMap',
+		'metadata'
 	],
 	#category : 'MooseParquet-ParquetImporter',
 	#package : 'MooseParquet',
 	#tag : 'ParquetImporter'
 }
+
+{ #category : 'metadata' }
+MooseParquetImporter >> applyMetadata [
+	self metadataName ifNotNil: [ :modelName |
+		(model notNil and: [ model respondsTo: #name: ]) ifTrue: [
+			model name: modelName ] ]
+]
+
+{ #category : 'api' }
+MooseParquetImporter >> import [
+	self importMetadata.
+	self importEntities.
+	self importEntitiesProperties.
+	self importEntitiesRelationships
+]
 
 { #category : 'as yet unclassified' }
 MooseParquetImporter >> importEntities [
@@ -83,11 +99,74 @@ MooseParquetImporter >> importEntitiesRelationships [
 							with: (entitiesMap at: (endNodeArray at: index)) ] ] ]
 ]
 
+{ #category : 'metadata' }
+MooseParquetImporter >> importMetadata [
+	^ self importMetadataFrom: self metadataFileReference
+]
+
+{ #category : 'metadata' }
+MooseParquetImporter >> importMetadataFrom: aFileReference [
+	| fileReference |
+	fileReference := aFileReference asFileReference.
+	fileReference exists ifFalse: [
+		metadata := Dictionary new.
+		^ metadata ].
+	metadata := self parseMetadataFrom: fileReference contents.
+	self applyMetadata.
+	^ metadata
+]
+
 { #category : 'initialization' }
 MooseParquetImporter >> initialize [
-
 	super initialize.
-	entitiesMap := Dictionary new
+	entitiesMap := Dictionary new.
+	metadata := Dictionary new
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadata [
+	^ metadata
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadata: aDictionary [
+	metadata := self normalizedMetadataFrom: aDictionary.
+	self applyMetadata
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadataAt: aSymbol [
+	^ metadata at: aSymbol ifAbsent: [ nil ]
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadataDate [
+	^ self metadataAt: #date
+]
+
+{ #category : 'metadata' }
+MooseParquetImporter >> metadataFields [
+	^ #(name importer date version)
+]
+
+{ #category : 'metadata' }
+MooseParquetImporter >> metadataFileReference [
+	^ FileLocator documents / 'metadata.json'
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadataImporter [
+	^ self metadataAt: #importer
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadataName [
+	^ self metadataAt: #name
+]
+
+{ #category : 'accessing' }
+MooseParquetImporter >> metadataVersion [
+	^ self metadataAt: #version
 ]
 
 { #category : 'accessing' }
@@ -100,4 +179,30 @@ MooseParquetImporter >> model [
 MooseParquetImporter >> model: anObject [
 
 	model := anObject
+]
+
+{ #category : 'metadata' }
+MooseParquetImporter >> normalizedMetadataFrom: anObject [
+	| normalized |
+	normalized := Dictionary new.
+	(anObject respondsTo: #at:ifPresent:ifAbsent:) ifFalse: [ ^ normalized ].
+	self metadataFields do: [ :field |
+		anObject
+			at: field asString
+			ifPresent: [ :value | normalized at: field put: value ]
+			ifAbsent: [
+				anObject
+					at: field
+					ifPresent: [ :value | normalized at: field put: value ]
+					ifAbsent: [ ] ] ].
+	^ normalized
+]
+
+{ #category : 'metadata' }
+MooseParquetImporter >> parseMetadataFrom: aString [
+	| parsed |
+	aString ifNil: [ ^ Dictionary new ].
+	aString trimBoth ifEmpty: [ ^ Dictionary new ].
+	parsed := NeoJSONReader fromString: aString.
+	^ self normalizedMetadataFrom: parsed
 ]
