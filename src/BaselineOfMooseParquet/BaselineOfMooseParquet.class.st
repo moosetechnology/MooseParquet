@@ -26,13 +26,17 @@ BaselineOfMooseParquet >> defineDependencies: spec [
 { #category : 'baselines' }
 BaselineOfMooseParquet >> defineGroups: spec [
 
-	
+	spec
+		group: 'Core' with: #( 'MooseParquet' );
+		group: 'Tests' with: #( 'MooseParquet-Tests' );
+		group: 'default' with: #( 'Core' )
 ]
 
 { #category : 'baselines' }
 BaselineOfMooseParquet >> definePackages: spec [
 
 	spec
-		package: 'MooseParquet'
-		with: [ spec requires: #( 'PharoArrow' ) ]
+		package: 'MooseParquet' with: [ spec requires: #( 'PharoArrow' ) ];
+		package: 'MooseParquet-Tests'
+		with: [ spec requires: #( 'MooseParquet' ) ]
 ]
