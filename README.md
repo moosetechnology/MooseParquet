@@ -44,8 +44,8 @@ modelJava := FamixJavaModel new.
 
 importer := MooseParquetImporter new.
 importer model: modelJava.
-importer importEntities. "11 sec"
-importer importEntitiesProperties. "1 min"
+importer importEntities.
+importer importEntitiesProperties.
 importer importEntitiesRelationships
 ```
 
