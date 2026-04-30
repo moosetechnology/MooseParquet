@@ -14,6 +14,7 @@ Class {
 
 { #category : 'running' }
 MooseParquetEntitiesExporterTest >> setUp [
+
 	super setUp.
 	exporter := MooseParquetEntitiesExporter new.
 	idBuilder := MooseParquetTestBuilder new.
@@ -25,28 +26,34 @@ MooseParquetEntitiesExporterTest >> setUp [
 
 { #category : 'tests' }
 MooseParquetEntitiesExporterTest >> testExportEntityAppendsEntityFullName [
+
 	exporter exportEntity: entity.
-	self assert: labelBuilder values equals: #('FamixJavaClass')
+	self assert: labelBuilder values equals: #( 'FamixJavaClass' )
 ]
 
 { #category : 'tests' }
 MooseParquetEntitiesExporterTest >> testExportEntityAppendsMooseID [
+
 	exporter exportEntity: entity.
-	self assert: idBuilder values equals: #(42)
+	self assert: idBuilder values equals: #( 42 )
 ]
 
 { #category : 'tests' }
 MooseParquetEntitiesExporterTest >> testExportEntityCanBeCalledForSeveralEntities [
+
 	| second |
 	second := MooseParquetTestEntity id: 99 label: 'FamixJavaMethod'.
 	exporter exportEntity: entity.
 	exporter exportEntity: second.
-	self assert: idBuilder values equals: #(42 99).
-	self assert: labelBuilder values equals: #('FamixJavaClass' 'FamixJavaMethod')
+	self assert: idBuilder values equals: #( 42 99 ).
+	self
+		assert: labelBuilder values
+		equals: #( 'FamixJavaClass' 'FamixJavaMethod' )
 ]
 
 { #category : 'tests' }
 MooseParquetEntitiesExporterTest >> testModelAccessor [
+
 	| model |
 	model := Object new.
 	exporter model: model.
