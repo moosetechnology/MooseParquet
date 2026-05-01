@@ -15,38 +15,33 @@ Class {
 	#tag : 'ParquetExporter'
 }
 
+{ #category : 'accessing' }
+MooseParquetEntitiesExporter >> archiveMemberName [
+
+	^ MooseParquetArchive entitiesMemberName
+]
+
+{ #category : 'accessing' }
+MooseParquetEntitiesExporter >> columns [
+
+	^ columns
+]
+
+{ #category : 'accessing' }
+MooseParquetEntitiesExporter >> defaultFileReference [
+
+	^ FileLocator documents / 'entities.parquet'
+]
+
 { #category : 'api' }
 MooseParquetEntitiesExporter >> export [
 	"Perform entities export"
 
-	|  writer table |
-	"prepare schema"
 	self prepareSchema.
 	self prepareBuilder.
 	self model entities do: [ :entity | self exportEntity: entity ].
-	columns := self finishBuilder.
-	"create table"
-	table := PharoArrowLibrary uniqueInstance
-		         garrow_table_new_values: schema
-		         values: columns
-		         error: nil.
-	"write the file now"
-	writer := PharoParquetLibrary uniqueInstance
-		          gparquet_arrow_file_writer_new_path: schema
-		          path:
-		          (FileLocator documents / 'entities.parquet') fullName
-		          writerProperties: nil
-		          error: nil.
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_write_table: writer
-		table: table
-		chunkSize: 10000
-		error: nil.
-
-	"if everything goes well, you can close the writer here"
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_close: writer
-		error: nil
+	self finishBuilder.
+	self outputTable
 ]
 
 { #category : 'exporting' }
@@ -88,28 +83,7 @@ MooseParquetEntitiesExporter >> model: anObject [
 { #category : 'exporting' }
 MooseParquetEntitiesExporter >> outputTable [
 
-	| table writer |
-	table := PharoArrowLibrary uniqueInstance
-		         garrow_table_new_values: schema
-		         values: columns
-		         error: nil.
-	"write the file now"
-	writer := PharoParquetLibrary uniqueInstance
-		          gparquet_arrow_file_writer_new_path: schema
-		          path:
-		          (FileLocator documents / 'entities.parquet') fullName
-		          writerProperties: nil
-		          error: nil.
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_write_table: writer
-		table: table
-		chunkSize: 10000
-		error: nil.
-
-	"if everything goes well, you can close the writer here"
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_close: writer
-		error: nil
+	^ self outputTableToFile: self defaultFileReference
 ]
 
 { #category : 'exporting' }
@@ -143,4 +117,10 @@ MooseParquetEntitiesExporter >> prepareSchema [
 	fields := PharoGLibLibrary uniqueInstance g_list_append: fields with: label.
 	"arrow schema from our usage"
 	schema := PharoArrowLibrary uniqueInstance garrow_schema_new: fields
+]
+
+{ #category : 'accessing' }
+MooseParquetEntitiesExporter >> schema [
+
+	^ schema
 ]

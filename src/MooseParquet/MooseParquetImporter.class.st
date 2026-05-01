@@ -18,6 +18,37 @@ MooseParquetImporter >> applyMetadata [
 			model name: modelName ] ]
 ]
 
+{ #category : 'importing' }
+MooseParquetImporter >> applyPropertyKey: key value: value to: entity [
+
+	entity perform: key asSymbol asMutator with: value
+]
+
+{ #category : 'importing' }
+MooseParquetImporter >> applyRelationshipType: typeName from: sourceEntity to: targetEntity [
+
+	(sourceEntity mooseDescription propertyNamed: typeName asSymbol)
+		isMultivalued
+		ifTrue: [
+		(sourceEntity perform: typeName asSymbol) add: targetEntity ]
+		ifFalse: [
+			sourceEntity
+				perform: typeName asSymbol asMutator
+				with: targetEntity ]
+]
+
+{ #category : 'files' }
+MooseParquetImporter >> entitiesFileReference [
+
+	^ FileLocator documents / 'entities.parquet'
+]
+
+{ #category : 'files' }
+MooseParquetImporter >> entitiesPropertiesFileReference [
+
+	^ FileLocator documents / 'entities_properties.parquet'
+]
+
 { #category : 'api' }
 MooseParquetImporter >> import [
 	self importMetadata.
@@ -26,14 +57,17 @@ MooseParquetImporter >> import [
 	self importEntitiesRelationships
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'api' }
 MooseParquetImporter >> importEntities [
 
-	| reader table idArray labelArray |
-	reader := GParquetArrowFileReader
-		          on: '/Users/benoit.verhaeghe/Documents/entities.parquet'
-		          error: nil.
-	table := reader readTableWithError: nil.
+	^ self importEntitiesFromTable:
+		  (self tableFromFileReference: self entitiesFileReference)
+]
+
+{ #category : 'importing' }
+MooseParquetImporter >> importEntitiesFromTable: table [
+
+	| idArray labelArray |
 	idArray := (table dataOfColumns: 0) chunk: 0.
 	labelArray := (table dataOfColumns: 1) chunk: 0.
 	0 to: table numberOfRows - 1 do: [ :index |
@@ -44,15 +78,17 @@ MooseParquetImporter >> importEntities [
 		entitiesMap at: (idArray at: index) put: entity ]
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'api' }
 MooseParquetImporter >> importEntitiesProperties [
 
-	| reader table nodeIdArray keyArray valTypeArray valuesArray |
-	reader := GParquetArrowFileReader
-		          on:
-		          '/Users/benoit.verhaeghe/Documents/entities_properties.parquet'
-		          error: nil.
-	table := reader readTableWithError: nil.
+	^ self importEntitiesPropertiesFromTable:
+		  (self tableFromFileReference: self entitiesPropertiesFileReference)
+]
+
+{ #category : 'importing' }
+MooseParquetImporter >> importEntitiesPropertiesFromTable: table [
+
+	| nodeIdArray keyArray valTypeArray valuesArray |
 	nodeIdArray := (table dataOfColumns: 0) chunk: 0.
 	keyArray := (table dataOfColumns: 1) chunk: 0.
 	valTypeArray := (table dataOfColumns: 2) chunk: 0.
@@ -63,40 +99,54 @@ MooseParquetImporter >> importEntitiesProperties [
 		               (3 -> ((table dataOfColumns: 6) chunk: 0)) }
 		               asDictionary.
 	0 to: table numberOfRows - 1 do: [ :index |
-		| entity |
-		entity := entitiesMap at: (nodeIdArray at: index).
-		entity
-			perform: (keyArray at: index) asSymbol asMutator
-			with: ((valuesArray at: (valTypeArray at: index)) at: index) ]
+		self
+			applyPropertyKey: (keyArray at: index)
+			value: ((valuesArray at: (valTypeArray at: index)) at: index)
+			to: (entitiesMap at: (nodeIdArray at: index)) ]
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'api' }
 MooseParquetImporter >> importEntitiesRelationships [
 
-	| reader table typeArray startNodeArray endNodeArray |
-	reader := GParquetArrowFileReader
-		          on:
-		          '/Users/benoit.verhaeghe/Documents/relationships.parquet'
-		          error: nil.
-	table := reader readTableWithError: nil.
+	^ self importEntitiesRelationshipsFromTable:
+		  (self tableFromFileReference: self relationshipsFileReference)
+]
+
+{ #category : 'importing' }
+MooseParquetImporter >> importEntitiesRelationshipsFromTable: table [
+
+	| typeArray startNodeArray endNodeArray |
 	typeArray := (table dataOfColumns: 0) chunk: 0.
 	startNodeArray := (table dataOfColumns: 1) chunk: 0.
 	endNodeArray := (table dataOfColumns: 2) chunk: 0.
-
 	FMShouldCheckForDuplicatedEntitiesInMultivalueLinks
 		value: false
 		during: [
 			0 to: table numberOfRows - 1 do: [ :index |
-				((entitiesMap at: (startNodeArray at: index)) mooseDescription
-					 propertyNamed: (typeArray at: index) asSymbol) isMultivalued
-					ifTrue: [
-						((entitiesMap at: (startNodeArray at: index)) perform:
-							 (typeArray at: index) asSymbol) add:
-							(entitiesMap at: (endNodeArray at: index)) ]
-					ifFalse: [
-						(entitiesMap at: (startNodeArray at: index))
-							perform: (typeArray at: index) asSymbol asMutator
-							with: (entitiesMap at: (endNodeArray at: index)) ] ] ]
+				self
+					applyRelationshipType: (typeArray at: index)
+					from: (entitiesMap at: (startNodeArray at: index))
+					to: (entitiesMap at: (endNodeArray at: index)) ] ]
+]
+
+{ #category : 'api' }
+MooseParquetImporter >> importFrom: aMooseModelFileReference [
+
+	| archive |
+	archive := MooseParquetArchive readFrom: aMooseModelFileReference.
+	MooseParquetArchive validateArchive: archive.
+	entitiesMap := Dictionary new.
+	self importMetadataFromArchive: archive.
+	self importEntitiesFromTable: (self
+			 tableFromArchive: archive
+			 memberNamed: MooseParquetArchive entitiesMemberName).
+	self importEntitiesPropertiesFromTable: (self
+			 tableFromArchive: archive
+			 memberNamed: MooseParquetArchive entitiesPropertiesMemberName).
+	self importEntitiesRelationshipsFromTable: (self
+			 tableFromArchive: archive
+			 memberNamed: MooseParquetArchive relationshipsMemberName).
+	^ self model
 ]
 
 { #category : 'metadata' }
@@ -112,6 +162,22 @@ MooseParquetImporter >> importMetadataFrom: aFileReference [
 		metadata := Dictionary new.
 		^ metadata ].
 	metadata := self parseMetadataFrom: fileReference contents.
+	self applyMetadata.
+	^ metadata
+]
+
+{ #category : 'metadata' }
+MooseParquetImporter >> importMetadataFromArchive: archive [
+
+	metadata := [
+	            self parseMetadataFrom: (MooseParquetArchive
+			             textContentsOf: MooseParquetArchive metadataFileName
+			             in: archive) ]
+		            on: Error
+		            do: [ :exception |
+			            Error signal:
+				            'Invalid .moosemodel metadata.json: '
+				            , exception messageText ].
 	self applyMetadata.
 	^ metadata
 ]
@@ -205,4 +271,27 @@ MooseParquetImporter >> parseMetadataFrom: aString [
 	aString trimBoth ifEmpty: [ ^ Dictionary new ].
 	parsed := NeoJSONReader fromString: aString.
 	^ self normalizedMetadataFrom: parsed
+]
+
+{ #category : 'files' }
+MooseParquetImporter >> relationshipsFileReference [
+
+	^ FileLocator documents / 'relationships.parquet'
+]
+
+{ #category : 'parquet' }
+MooseParquetImporter >> tableFromArchive: archive memberNamed: memberName [
+
+	^ MooseParquetArrowMemory tableFromParquetBytes:
+		  (MooseParquetArchive binaryContentsOf: memberName in: archive)
+]
+
+{ #category : 'parquet' }
+MooseParquetImporter >> tableFromFileReference: aFileReference [
+
+	| reader |
+	reader := GParquetArrowFileReader
+		          on: aFileReference asFileReference fullName
+		          error: nil.
+	^ reader readTableWithError: nil
 ]

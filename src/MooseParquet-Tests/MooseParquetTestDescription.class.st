@@ -22,6 +22,14 @@ MooseParquetTestDescription >> addProperty: aProperty [
 	properties at: aProperty name asSymbol put: aProperty
 ]
 
+{ #category : 'instance creation' }
+MooseParquetTestDescription >> createInstance [
+
+	^ MooseParquetTestEntity new
+		  mooseDescription: self;
+		  yourself
+]
+
 { #category : 'accessing' }
 MooseParquetTestDescription >> fullName [
 	^ fullName

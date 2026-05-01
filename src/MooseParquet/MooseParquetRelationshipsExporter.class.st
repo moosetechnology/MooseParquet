@@ -16,38 +16,33 @@ Class {
 	#tag : 'ParquetExporter'
 }
 
+{ #category : 'accessing' }
+MooseParquetRelationshipsExporter >> archiveMemberName [
+
+	^ MooseParquetArchive relationshipsMemberName
+]
+
+{ #category : 'accessing' }
+MooseParquetRelationshipsExporter >> columns [
+
+	^ columns
+]
+
+{ #category : 'accessing' }
+MooseParquetRelationshipsExporter >> defaultFileReference [
+
+	^ FileLocator documents / 'relationships.parquet'
+]
+
 { #category : 'api' }
 MooseParquetRelationshipsExporter >> export [
-	"Perform entities export"
+	"Perform relationships export"
 
-	| writer table |
-	"prepare schema"
 	self prepareSchema.
 	self prepareBuilder.
 	self model entities do: [ :entity | self exportEntity: entity ].
 	self finishBuilder.
-	"create table"
-	table := PharoArrowLibrary uniqueInstance
-		         garrow_table_new_values: schema
-		         values: columns
-		         error: nil.
-	"write the file now"
-	writer := PharoParquetLibrary uniqueInstance
-		          gparquet_arrow_file_writer_new_path: schema
-		          path:
-		          (FileLocator documents / 'relationships.parquet') fullName
-		          writerProperties: nil
-		          error: nil.
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_write_table: writer
-		table: table
-		chunkSize: 10000
-		error: nil.
-
-	"if everything goes well, you can close the writer here"
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_close: writer
-		error: nil
+	self outputTable
 ]
 
 { #category : 'exporting' }
@@ -92,32 +87,10 @@ MooseParquetRelationshipsExporter >> model: anObject [
 	model := anObject
 ]
 
-{ #category : 'accessing' }
+{ #category : 'exporting' }
 MooseParquetRelationshipsExporter >> outputTable [
 
-	| writer table |
-	"create table"
-	table := PharoArrowLibrary uniqueInstance
-		         garrow_table_new_values: schema
-		         values: columns
-		         error: nil.
-	"write the file now"
-	writer := PharoParquetLibrary uniqueInstance
-		          gparquet_arrow_file_writer_new_path: schema
-		          path:
-		          (FileLocator documents / 'relationships.parquet') fullName
-		          writerProperties: nil
-		          error: nil.
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_write_table: writer
-		table: table
-		chunkSize: 10000
-		error: nil.
-
-	"if everything goes well, you can close the writer here"
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_close: writer
-		error: nil
+	^ self outputTableToFile: self defaultFileReference
 ]
 
 { #category : 'exporting' }
@@ -192,4 +165,10 @@ MooseParquetRelationshipsExporter >> relationsToExport: entity [
 							property.
 							(entity propertyNamed: property name) } ] ].
 	^ col
+]
+
+{ #category : 'accessing' }
+MooseParquetRelationshipsExporter >> schema [
+
+	^ schema
 ]

@@ -20,15 +20,32 @@ Class {
 	#tag : 'ParquetExporter'
 }
 
+{ #category : 'accessing' }
+MooseParquetEntitiesPropertiesExporter >> archiveMemberName [
+
+	^ MooseParquetArchive entitiesPropertiesMemberName
+]
+
+{ #category : 'accessing' }
+MooseParquetEntitiesPropertiesExporter >> columns [
+
+	^ columns
+]
+
+{ #category : 'accessing' }
+MooseParquetEntitiesPropertiesExporter >> defaultFileReference [
+
+	^ FileLocator documents / 'entities_properties.parquet'
+]
+
 { #category : 'api' }
 MooseParquetEntitiesPropertiesExporter >> export [
-	"Perform entities export"
+	"Perform entities properties export"
 
-	"prepare schema""create table""write the file now""if everything goes well, you can close the writer here"
-	schema := self prepareSchema.
-	valueBoolBuilder := self prepareBuilder.
+	self prepareSchema.
+	self prepareBuilder.
 	self model entities do: [ :entity | self exportEntity: entity ].
-	columns := self finishBuilder.
+	self finishBuilder.
 	self outputTable
 ]
 
@@ -82,7 +99,7 @@ MooseParquetEntitiesPropertiesExporter >> fillStringProperty: property forEntity
 	valueBoolBuilder appendNull
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'exporting' }
 MooseParquetEntitiesPropertiesExporter >> finishBuilder [
 
 	| keyArray valueStrArray valueTypeArray nodeIDArray valueBoolArray valueIntArray valueFloatArray |
@@ -97,8 +114,25 @@ MooseParquetEntitiesPropertiesExporter >> finishBuilder [
 	columns := PharoGLibLibrary uniqueInstance
 		           g_list_append: columns
 		           with: nodeIDArray.
-	columns := columns , keyArray , valueTypeArray , valueStrArray
-	           , valueIntArray , valueFloatArray , valueBoolArray.
+	columns := PharoGLibLibrary uniqueInstance
+		           g_list_append: columns
+		           with: keyArray.
+	columns := PharoGLibLibrary uniqueInstance
+		           g_list_append: columns
+		           with: valueTypeArray.
+	columns := PharoGLibLibrary uniqueInstance
+		           g_list_append: columns
+		           with: valueStrArray.
+	columns := PharoGLibLibrary uniqueInstance
+		           g_list_append: columns
+		           with: valueIntArray.
+	columns := PharoGLibLibrary uniqueInstance
+		           g_list_append: columns
+		           with: valueFloatArray.
+	columns := PharoGLibLibrary uniqueInstance
+		           g_list_append: columns
+		           with: valueBoolArray.
+	^ columns
 ]
 
 { #category : 'accessing' }
@@ -113,32 +147,10 @@ MooseParquetEntitiesPropertiesExporter >> model: anObject [
 	model := anObject
 ]
 
-{ #category : 'as yet unclassified' }
+{ #category : 'exporting' }
 MooseParquetEntitiesPropertiesExporter >> outputTable [
 
-	| writer table |
-	table := PharoArrowLibrary uniqueInstance
-		         garrow_table_new_values: schema
-		         values: columns
-		         error: nil.
-	"write the file now"
-	writer := PharoParquetLibrary uniqueInstance
-		          gparquet_arrow_file_writer_new_path: schema
-		          path:
-		          (FileLocator documents / 'entities_properties.parquet')
-			          fullName
-		          writerProperties: nil
-		          error: nil.
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_write_table: writer
-		table: table
-		chunkSize: 10000
-		error: nil.
-
-	"if everything goes well, you can close the writer here"
-	PharoParquetLibrary uniqueInstance
-		gparquet_arrow_file_writer_close: writer
-		error: nil
+	^ self outputTableToFile: self defaultFileReference
 ]
 
 { #category : 'as yet unclassified' }
@@ -164,8 +176,7 @@ MooseParquetEntitiesPropertiesExporter >> prepareBuilder [
 MooseParquetEntitiesPropertiesExporter >> prepareSchema [
 	"Perform entities export"
 
-	| strType int64Type idField key value_type fields int8Type value_str value_int value_float value_bool floatType boolType |
-	"prepare schema"
+	| strType int64Type idField key valueType fields int8Type valueStr valueInt valueFloat valueBool floatType boolType |
 	strType := PharoArrowLibrary uniqueInstance
 		           garrow_string_data_type_new.
 	int64Type := PharoArrowLibrary uniqueInstance
@@ -173,7 +184,7 @@ MooseParquetEntitiesPropertiesExporter >> prepareSchema [
 	int8Type := PharoArrowLibrary uniqueInstance
 		            garrow_int8_data_type_new.
 	floatType := PharoArrowLibrary uniqueInstance
-		            garrow_float_data_type_new.
+		             garrow_float_data_type_new.
 	boolType := PharoArrowLibrary uniqueInstance
 		            garrow_boolean_data_type_new.
 
@@ -183,29 +194,44 @@ MooseParquetEntitiesPropertiesExporter >> prepareSchema [
 	key := PharoArrowLibrary uniqueInstance
 		       garrow_field_new: 'key'
 		       dataType: strType.
-	value_type := PharoArrowLibrary uniqueInstance
-		              garrow_field_new: 'value_type'
-		              dataType: int8Type.
-	value_str := PharoArrowLibrary uniqueInstance
-		             garrow_field_new: 'value_str'
-		             dataType: strType.
-	value_int := PharoArrowLibrary uniqueInstance
-		             garrow_field_new: 'value_int'
-		             dataType: int64Type.
-	value_float := PharoArrowLibrary uniqueInstance
-		               garrow_field_new: 'value_float'
-		               dataType: floatType.
-	value_bool := PharoArrowLibrary uniqueInstance
-		              garrow_field_new: 'value_bool'
-		              dataType: boolType.
+	valueType := PharoArrowLibrary uniqueInstance
+		             garrow_field_new: 'value_type'
+		             dataType: int8Type.
+	valueStr := PharoArrowLibrary uniqueInstance
+		            garrow_field_new: 'value_str'
+		            dataType: strType.
+	valueInt := PharoArrowLibrary uniqueInstance
+		            garrow_field_new: 'value_int'
+		            dataType: int64Type.
+	valueFloat := PharoArrowLibrary uniqueInstance
+		              garrow_field_new: 'value_float'
+		              dataType: floatType.
+	valueBool := PharoArrowLibrary uniqueInstance
+		             garrow_field_new: 'value_bool'
+		             dataType: boolType.
 
 	fields := nil.
 	fields := PharoGLibLibrary uniqueInstance
 		          g_list_append: fields
 		          with: idField.
-	fields := fields , key , value_type , value_str , value_int
-	          , value_float , value_bool.
-	"arrow schema from our usage"
+	fields := PharoGLibLibrary uniqueInstance
+		          g_list_append: fields
+		          with: key.
+	fields := PharoGLibLibrary uniqueInstance
+		          g_list_append: fields
+		          with: valueType.
+	fields := PharoGLibLibrary uniqueInstance
+		          g_list_append: fields
+		          with: valueStr.
+	fields := PharoGLibLibrary uniqueInstance
+		          g_list_append: fields
+		          with: valueInt.
+	fields := PharoGLibLibrary uniqueInstance
+		          g_list_append: fields
+		          with: valueFloat.
+	fields := PharoGLibLibrary uniqueInstance
+		          g_list_append: fields
+		          with: valueBool.
 	schema := PharoArrowLibrary uniqueInstance garrow_schema_new: fields
 ]
 
@@ -220,4 +246,10 @@ MooseParquetEntitiesPropertiesExporter >> propertiesOfToExport: entity [
 						  property type name = #Object or: [
 							  (entity propertyNamed: property name) isCollection and: [
 								  (entity propertyNamed: property name) isEmpty ] ] ] ] ] ]
+]
+
+{ #category : 'accessing' }
+MooseParquetEntitiesPropertiesExporter >> schema [
+
+	^ schema
 ]

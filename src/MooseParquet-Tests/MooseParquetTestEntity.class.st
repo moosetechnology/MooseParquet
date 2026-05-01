@@ -37,6 +37,20 @@ MooseParquetTestEntity >> declareProperty: aProperty [
 	mooseDescription ifNotNil: [ mooseDescription addProperty: aProperty ]
 ]
 
+{ #category : 'accessing' }
+MooseParquetTestEntity >> doesNotUnderstand: aMessage [
+
+	| selector key |
+	selector := aMessage selector.
+	(selector numArgs = 1 and: [ selector asString last = $: ]) ifTrue: [
+		key := selector asString allButLast asSymbol.
+		values at: key put: aMessage arguments first.
+		^ aMessage arguments first ].
+	(selector numArgs = 0 and: [ values includesKey: selector ]) ifTrue: [
+		^ values at: selector ].
+	^ super doesNotUnderstand: aMessage
+]
+
 { #category : 'initialization' }
 MooseParquetTestEntity >> initialize [
 	super initialize.
