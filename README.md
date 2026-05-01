@@ -21,34 +21,29 @@ Metacello new
 Export a Moose model to Parquet files:
 
 ```smalltalk
+| model output exporter |
+
+model := MooseModel root second. "ou ton modèle Moose déjà chargé"
+output := FileLocator documents / 'jpetStore.moosemodel'.
+
 exporter := MooseParquetExporter new.
-exporter model: MooseModel root anyOne.
-exporter export.
+exporter model: model.
+exporter exportTo: output.
 ```
-
-The exporter writes the following files:
-
-- `entities.parquet`
-- `entities_properties.parquet`
-- `relationships.parquet`
-
-These files contain the model entities, their exported scalar properties, and
-the relationships between entities.
 
 ## Example Usage: Import
 
 Import the generated Parquet files into a Moose model:
 
 ```smalltalk
-modelJava := FamixJavaModel new.
+| model input importer |
+
+model := MooseModel new.
+input := FileLocator documents / 'my-model.moosemodel'.
 
 importer := MooseParquetImporter new.
-importer model: modelJava.
-importer importEntities.
-importer importEntitiesProperties.
-importer importEntitiesRelationships
-```
+importer model: model.
+importer importFrom: input.
 
-The import process should be run in this order: entities first, then scalar
-properties, then relationships. This ensures that every relationship can be
-resolved against entities already present in the target model.
+model
+```
